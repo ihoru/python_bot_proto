@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import logging
@@ -7,7 +7,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 import config
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
 
 def start_message(bot, chat_id):
@@ -33,9 +33,9 @@ def start(bot, update):
 def answer_question(bot, update):
     query = update.callback_query
     chat_id = query.message.chat_id
-    parts = (query.data.split('|', 1))
+    parts = dict(enumerate(query.data.split('|', 1)))
     answer_type = parts[0]
-    data = parts[1] if 1 in parts else None
+    data = parts.get(1)
     bot.answerCallbackQuery(query.id, text="Ok!")
     if answer_type == 'answer':
         if data == '3':
@@ -71,5 +71,4 @@ updater.start_polling(timeout=60)
 
 # Run the bot until the user presses Ctrl-C or the process receives SIGINT,
 # SIGTERM or SIGABRT
-logging.info('Starting...')
 updater.idle()
