@@ -1,9 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#
-# Basic example for a bot that awaits an answer from the user. It's built upon
-# the state_machine_bot.py example
-# This program is dedicated to the public domain under the CC0 license.
 
 import logging
 from telegram import Emoji, InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,36 +7,20 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 import config
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.DEBUG)
-
-# Define the different states a chat can be in
-MENU, AWAIT_CONFIRMATION, AWAIT_INPUT = range(3)
-
-# Python 2 and 3 unicode differences
-try:
-    YES, NO = (Emoji.THUMBS_UP_SIGN.decode('utf-8'), Emoji.THUMBS_DOWN_SIGN.decode('utf-8'))
-except AttributeError:
-    YES, NO = (Emoji.THUMBS_UP_SIGN, Emoji.THUMBS_DOWN_SIGN)
-
-# States are saved in a dict that maps chat_id -> state
-state = dict()
-# Sometimes you need to save data temporarily
-context = dict()
-# This dict is used to store the settings value for the chat.
-# Usually, you'd use persistence for this (e.g. sqlite).
-values = dict()
+                    level=logging.INFO)
 
 
 def start_message(bot, chat_id):
     bot.sendMessage(chat_id, text="https://www.youtube.com/watch?v=N4mEzFDjqtA")
+    callback_data = 'answer|'
     reply_markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton('A. 1', callback_data='1'),
-            InlineKeyboardButton('B. 2', callback_data='2'),
+            InlineKeyboardButton('A. 1', callback_data=callback_data + '1'),
+            InlineKeyboardButton('B. 2', callback_data=callback_data + '2'),
         ],
         [
-            InlineKeyboardButton('C. 3', callback_data='3'),
-            InlineKeyboardButton('D. 4', callback_data='4'),
+            InlineKeyboardButton('C. 3', callback_data=callback_data + '3'),
+            InlineKeyboardButton('D. 4', callback_data=callback_data + '4'),
         ]
     ])
     bot.sendMessage(chat_id, text="Choose an answer:", reply_markup=reply_markup)
@@ -53,20 +33,29 @@ def start(bot, update):
 def answer_question(bot, update):
     query = update.callback_query
     chat_id = query.message.chat_id
-    text = query.data
-    print(text)
+    parts = (query.data.split('|', 1))
+    answer_type = parts[0]
+    data = parts[1] if 1 in parts else None
     bot.answerCallbackQuery(query.id, text="Ok!")
-    edit_message = {'chat_id': chat_id, 'message_id': query.message.message_id}
-    if text == '3':
-        answer = "Correct!"
-    else:
-        answer = "Wrong!"
-    bot.editMessageText(text=answer, **edit_message)
-    start_message(bot, chat_id)
+    if answer_type == 'answer':
+        if data == '3':
+            answer = "Correct!"
+        else:
+            answer = "Wrong!"
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton('Next', callback_data='next')]])
+        edit_message = {
+            'chat_id': chat_id,
+            'message_id': query.message.message_id,
+            'text': answer,
+            'reply_markup': reply_markup,
+        }
+        bot.editMessageText(**edit_message)
+    elif answer_type == 'next':
+        start_message(bot, chat_id)
 
 
-def error(bot, update, error):
-    logging.warning('Update "%s" caused error "%s"' % (update, error))
+def error(bot, update, error_msg):
+    logging.warning('Update "%s" caused error "%s"' % (update, error_msg))
 
 
 # Create the Updater and pass it your bot's token.
@@ -78,8 +67,9 @@ updater.dispatcher.add_handler(CallbackQueryHandler(answer_question))
 updater.dispatcher.add_error_handler(error)
 
 # Start the Bot
-updater.start_polling()
+updater.start_polling(timeout=60)
 
 # Run the bot until the user presses Ctrl-C or the process receives SIGINT,
 # SIGTERM or SIGABRT
+logging.info('Starting...')
 updater.idle()
